@@ -1,7 +1,10 @@
 use scraper::{Html, Selector};
 use thiserror::Error;
+use tracing::error;
 
-pub const ISSUE_BACK_BONE: &str = "this-week-in-rust-";
+pub const ISSUE_BACK_BONE_THIS: &str = "this-week-in-rust-";
+pub const ISSUE_BACK_BONE_LAST: &str = "last-week-in-rust-";
+pub const ISSUE_BACK_BONE_THESE: &str = "these-weeks-in-rust-";
 
 #[derive(Debug, Error)]
 pub enum CrawlerError {
@@ -23,7 +26,6 @@ pub async fn get_latest_issue_index() -> Result<Vec<String>, CrawlerError> {
     // todo:
     // 1. verify your links with lychee: https://github.com/lycheeverse/lychee
     // 2. Do not return Vec<String> but a Link type that is verified when constructed
-    // 3. Error handling
     // 4. Logging.
     //
 
@@ -39,7 +41,11 @@ pub async fn get_latest_issue_index() -> Result<Vec<String>, CrawlerError> {
     let links: Vec<String> = document
         .select(&selector)
         .map(|element| element.html())
-        .filter(|element| element.contains(ISSUE_BACK_BONE))
+        .filter(|element| {
+            element.contains(ISSUE_BACK_BONE_THIS)
+                || element.contains(ISSUE_BACK_BONE_LAST)
+                || element.contains(ISSUE_BACK_BONE_THESE)
+        })
         .map(|element| {
             // trim beginnig tag
             let currated_link = element.replace("<a href=\"", "");
