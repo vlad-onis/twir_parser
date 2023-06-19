@@ -8,5 +8,6 @@ edition = "2021"
 [dependencies]
 reqwest = "0.11.18"
 scraper = "0.16.0"
+thiserror = "1.0.40"
 tokio = { version = "1.28.2", features = ["full"] }
 tokio-rustls = { version = "0.24.1", features = ["dangerous_configuration"] }
