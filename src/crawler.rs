@@ -49,7 +49,7 @@ fn extract_link_and_title(link: String) -> (String, String) {
 ///
 /// Valid link example: <a href="https://this-week-in-rust.org/blog/2020/07/14/this-week-in-rust-347/">This Week in Rust 347</a>
 /// Currated link collected by this function: https://this-week-in-rust.org/blog/2019/02/26/this-week-in-rust-275/
-pub async fn get_latest_issue_index() -> Result<Vec<(String, String)>, CrawlerError> {
+pub async fn get_issues_and_titles() -> Result<Vec<(String, String)>, CrawlerError> {
     // todo:
     // 1. verify your links with lychee: https://github.com/lycheeverse/lychee
     // 2. Do not return Vec<String> but a Link type that is verified when constructed
@@ -78,9 +78,21 @@ pub async fn get_latest_issue_index() -> Result<Vec<(String, String)>, CrawlerEr
     Ok(links_and_titles)
 }
 
-pub async fn parse_page() {
+pub async fn search(sentence: String) {
+    let issues_and_titles = get_issues_and_titles().await.unwrap();
+
+    // link and title
+    let mut found_resources: Vec<(String, String)> = Vec::new();
+
+    for (link, _) in issues_and_titles {
+        found_resources.append(&mut parse_page(&link).await)
+    }
+
+    error!("{found_resources:?}");
+}
+
+pub async fn parse_page(origin_url: &str) -> Vec<(String, String)> {
     let client = reqwest::Client::new();
-    let origin_url = "https://this-week-in-rust.org/blog/2022/04/27/this-week-in-rust-440/";
     let response = client
         .get(origin_url)
         .send()
@@ -104,7 +116,7 @@ pub async fn parse_page() {
         .filter(|(_, title)| title.contains("embedded audio")) // just an example from 440th issue
         .collect();
 
-    warn!("{links:?}");
+    links
 }
 
 #[allow(dead_code)]
