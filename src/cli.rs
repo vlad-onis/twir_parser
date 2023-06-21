@@ -1,10 +1,18 @@
-use clap::Parser;
+pub use clap::Parser;
 
 #[derive(Parser, Debug)]
-struct Args {
-    /// String to search for on TWIR
+pub struct Args {
+    /// String to search for on TWIR issue archive
     #[arg(short, long)]
-    search: String,
+    pub search: String,
+
+    /// If set, this option will always make the tool search online
+    #[arg(short, long, default_value_t = false)]
+    pub online: bool,
+
+    /// Limits the search to the last <limit> number of twir issues
+    #[arg(short, long, default_value_t = 500)]
+    pub limit: i32,
 }
 
 pub fn get_search_arg() -> String {
