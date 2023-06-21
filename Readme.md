@@ -1,6 +1,6 @@
 # TWIR(This week in rust) parser
 
-The goal of this CLI project is to parse the twir (This Week In Rust) articles in search of given keywords.
+The goal of this CLI project is to parse the TWIR articles in search of given keywords.
 
 ## Introduction
 This CLI tool was born because TWIR newsletter is an amazing learning resource. This tool allows you to search for given word patterns in the
