@@ -13,4 +13,7 @@ or automatically in case the cache file exists on your system. The tool defaults
 ```bash
 # Searches the entire TWIR issue archive for "embedded audio" articles
 cargo run -- --search "embedded audio"
+
+# Online search with limiting the search to the most recent 10 issues
+cargo run --release -- --search "ESP32" --online --limit 10
 ```
