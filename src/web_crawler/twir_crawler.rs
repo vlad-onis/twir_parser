@@ -9,6 +9,7 @@ pub const ISSUE_BACK_BONE_THIS: &str = "this-week-in-rust-";
 pub const ISSUE_BACK_BONE_LAST: &str = "last-week-in-rust-";
 pub const ISSUE_BACK_BONE_THESE: &str = "these-weeks-in-rust-";
 pub const TWIR_CONTENTS_FILE_PATH: &str = "twir_content.json";
+pub const UNLIMITED: i32 = i32::MAX;
 
 #[derive(Debug, Error)]
 pub enum CrawlerError {
@@ -125,21 +126,30 @@ impl TwirCrawler {
     pub async fn search_online(
         &self,
         sentence: &str,
+        limit: i32,
     ) -> Result<Vec<TwirLinkElement>, CrawlerError> {
         let issues_and_titles: Vec<TwirLinkElement>;
         issues_and_titles = self.get_all_archived_twir_issues().await?;
         let mut found_resources: Vec<TwirLinkElement> = Vec::new();
 
-        for issue in issues_and_titles {
-            found_resources.append(&mut self.parse_page(&issue.link, sentence).await?)
+        let limit = limit as usize;
+
+        for (index, issue) in issues_and_titles.into_iter().enumerate() {
+            found_resources.append(&mut self.parse_page(&issue.link, sentence).await?);
+
+            if index > limit {
+                break;
+            }
         }
 
         Ok(found_resources)
     }
 
-    pub async fn search(&self, sentence: String) {
-        let found = if !std::path::Path::is_file(Path::new(TWIR_CONTENTS_FILE_PATH)) {
-            self.search_online(&sentence).await.unwrap_or_default()
+    pub async fn search(&self, sentence: String, online: bool, limit: i32) {
+        let found = if (!std::path::Path::is_file(Path::new(TWIR_CONTENTS_FILE_PATH))) || online {
+            self.search_online(&sentence, limit)
+                .await
+                .unwrap_or_default()
         } else {
             self.search_offline(&sentence).await.unwrap_or_default()
         };

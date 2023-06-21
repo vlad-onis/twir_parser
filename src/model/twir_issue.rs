@@ -1,4 +1,3 @@
-use scraper::Html;
 use serde::{Deserialize, Serialize};
 use std::ops::Deref;
 

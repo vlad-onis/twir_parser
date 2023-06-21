@@ -3,13 +3,19 @@ pub mod logger;
 pub mod model;
 pub mod web_crawler;
 
+use clap::Parser;
 use web_crawler::twir_crawler::TwirCrawler;
 
 #[tokio::main]
 async fn main() {
     logger::set_tracing();
-    let search_word = cli::get_search_arg();
+
+    let args = cli::Args::parse();
+
+    let search_sentence = args.search;
+    let search_online = args.online;
+    let limit = args.limit;
 
     let crawler = TwirCrawler::new();
-    crawler.search(search_word).await;
+    crawler.search(search_sentence, search_online, limit).await;
 }
