@@ -1,7 +1,7 @@
 use scraper::{Html, Selector};
 use std::{fs::File, io::BufWriter, path::Path};
 use thiserror::Error;
-use tracing::{error, warn};
+use tracing::{error, info};
 
 use crate::model::twir_issue::{Link, TwirLinkElement};
 
@@ -20,6 +20,12 @@ pub enum CrawlerError {
 
     #[error("Fetching twir content failed")]
     Fetch,
+
+    #[error("IO error: {0}")]
+    IO(#[from] std::io::Error),
+
+    #[error("Serde Json error: {0}")]
+    SerdeJson(#[from] serde_json::Error),
 }
 
 pub struct TwirCrawler {}
@@ -101,41 +107,46 @@ impl TwirCrawler {
         Ok(links_and_titles)
     }
 
-    pub async fn search_offline(&self, sentence: &str) -> Vec<TwirLinkElement> {
-        let file_contents = std::fs::read_to_string(TWIR_CONTENTS_FILE_PATH).unwrap();
-        let issues_and_titles =
-            serde_json::from_str::<Vec<TwirLinkElement>>(&file_contents).unwrap();
+    pub async fn search_offline(
+        &self,
+        sentence: &str,
+    ) -> Result<Vec<TwirLinkElement>, CrawlerError> {
+        let file_contents = std::fs::read_to_string(TWIR_CONTENTS_FILE_PATH)?;
+        let issues_and_titles = serde_json::from_str::<Vec<TwirLinkElement>>(&file_contents)?;
 
         let found_resources: Vec<TwirLinkElement> = issues_and_titles
             .into_iter()
             .filter(|issue| issue.title.contains(sentence))
             .collect();
 
-        found_resources
+        Ok(found_resources)
     }
 
-    pub async fn search_online(&self, sentence: &str) -> Vec<TwirLinkElement> {
+    pub async fn search_online(
+        &self,
+        sentence: &str,
+    ) -> Result<Vec<TwirLinkElement>, CrawlerError> {
         let issues_and_titles: Vec<TwirLinkElement>;
-        issues_and_titles = self.get_all_archived_twir_issues().await.unwrap();
+        issues_and_titles = self.get_all_archived_twir_issues().await?;
         let mut found_resources: Vec<TwirLinkElement> = Vec::new();
 
         for issue in issues_and_titles {
-            found_resources.append(&mut self.parse_page(&issue.link, sentence).await.unwrap())
+            found_resources.append(&mut self.parse_page(&issue.link, sentence).await?)
         }
 
-        found_resources
+        Ok(found_resources)
     }
 
     pub async fn search(&self, sentence: String) {
         let found = if !std::path::Path::is_file(Path::new(TWIR_CONTENTS_FILE_PATH)) {
-            self.search_online(&sentence).await
+            self.search_online(&sentence).await.unwrap_or_default()
         } else {
-            self.search_offline(&sentence).await
+            self.search_offline(&sentence).await.unwrap_or_default()
         };
 
-        found
-            .into_iter()
-            .for_each(|element| warn!("Found: {element:?}"));
+        for element in found {
+            info!("Found: {} -> {}", element.title, element.link.0);
+        }
     }
 
     /// This function receives an actual issue page, fetches its contents
@@ -149,14 +160,7 @@ impl TwirCrawler {
         sentence: &str,
     ) -> Result<Vec<TwirLinkElement>, CrawlerError> {
         let client = reqwest::Client::new();
-        let response = client
-            .get(origin_url)
-            .send()
-            .await
-            .unwrap()
-            .text()
-            .await
-            .unwrap();
+        let response = client.get(origin_url).send().await?.text().await?;
 
         let document = Html::parse_document(&response);
 
@@ -178,22 +182,19 @@ impl TwirCrawler {
         Ok(links)
     }
 
-    pub async fn get_page_content(&self, origin_url: &str) -> Vec<TwirLinkElement> {
+    pub async fn get_page_content(
+        &self,
+        origin_url: &str,
+    ) -> Result<Vec<TwirLinkElement>, CrawlerError> {
         let client = reqwest::Client::new();
-        let response = client
-            .get(origin_url)
-            .send()
-            .await
-            .unwrap()
-            .text()
-            .await
-            .unwrap();
+        let response = client.get(origin_url).send().await?.text().await?;
 
         let document = Html::parse_document(&response);
 
-        let selector = Selector::parse("a")
-            .map_err(|_| CrawlerError::SelectorParsing)
-            .unwrap();
+        let selector = Selector::parse("a").map_err(|e| {
+            error!("Selector parsing failed: {e}");
+            CrawlerError::SelectorParsing
+        })?;
 
         let links: Vec<TwirLinkElement> = document
             .select(&selector)
@@ -201,7 +202,7 @@ impl TwirCrawler {
             .map(|element| self.extract_link_and_title(element))
             .collect();
 
-        links
+        Ok(links)
     }
 
     /// This function fetches the contents from all the archived issues on TWIR
@@ -209,12 +210,12 @@ impl TwirCrawler {
     ///
     /// Note: This function takes a lot of time run as it needs to fetch every single page
     pub async fn fetch_and_save_twir(&self) -> Result<(), CrawlerError> {
-        let twir_issues = self.get_all_archived_twir_issues().await.unwrap();
+        let twir_issues = self.get_all_archived_twir_issues().await?;
 
         let mut full_contents: Vec<TwirLinkElement> = Vec::new();
 
         for issue in twir_issues {
-            full_contents.append(&mut self.get_page_content(&issue.link).await);
+            full_contents.append(&mut self.get_page_content(&issue.link).await?);
         }
 
         let file = File::create(TWIR_CONTENTS_FILE_PATH).map_err(|e| {
