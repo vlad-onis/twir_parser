@@ -12,5 +12,4 @@ async fn main() {
 
     let crawler = TwirCrawler::new();
     crawler.search(search_word).await;
-    // crawler.fetch_and_save_twir().await;
 }
