@@ -1,10 +1,9 @@
 pub mod cli;
 pub mod logger;
+pub mod model;
 pub mod web_crawler;
 
 use web_crawler::twir_crawler::TwirCrawler;
-
-use tracing::{error, info};
 
 #[tokio::main]
 async fn main() {
@@ -13,4 +12,5 @@ async fn main() {
 
     let crawler = TwirCrawler::new();
     crawler.search(search_word).await;
+    // crawler.fetch_and_save_twir().await;
 }
