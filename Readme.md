@@ -8,12 +8,26 @@ newsletter's archive. It has 2 types of search online and offline. In the beginn
 from the newsletter, this may take a few minutes. After fetch it will decide to search online or offline based on a CLI option that you can pass
 or automatically in case the cache file exists on your system. The tool defaults to offline search for speed.
 
+## Installation
+
+In order to install, first clone this repository:
+```bash
+git clone git@github.com:vlad-onis/twir_parser.git
+```
+
+And then you can install it on your local machine by going into the directory you just cloned and run:
+In order to install, first clone this repository:
+```bash
+cargo install --path .
+```
+
 ## Usage
 
 ```bash
 # Searches the entire TWIR issue archive for "embedded audio" articles
-cargo run -- --search "embedded audio"
+# This will also save a local file and will use that as cache on next runs
+twir_parser --search "embedded audio"
 
 # Online search with limiting the search to the most recent 10 issues
-cargo run --release -- --search "ESP32" --online --limit 10
+twir_parser --search "ESP32" --online --limit 10
 ```
