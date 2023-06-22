@@ -2,6 +2,8 @@
 name = "twir_parser"
 version = "0.1.0"
 edition = "2021"
+description = "CLI tool that allows searching for articles in this week in rust newsletter"
+license = "MIT"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
