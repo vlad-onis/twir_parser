@@ -1,7 +1,7 @@
 use scraper::{Html, Selector};
 use std::{fs::File, io::BufWriter, path::Path};
 use thiserror::Error;
-use tracing::{error, info};
+use tracing::{error, info, trace};
 
 use crate::model::twir_issue::{Link, TwirLinkElement};
 
@@ -79,9 +79,13 @@ impl TwirCrawler {
 
         let client = reqwest::Client::new();
         let origin_url = "https://this-week-in-rust.org/blog/archives/index.html";
-        let response = client.get(origin_url).send().await?.text().await?;
+        let response = client.get(origin_url).send().await?;
+        let response_status = response.status();
+        let response_body = response.text().await?;
 
-        let document = Html::parse_document(&response);
+        info!("Response status: {}", response_status);
+
+        let document = Html::parse_document(&response_body);
 
         // todo: logging the error here is not ideal,
         // we should incorporate the [SelectorErrorKind] in
@@ -120,6 +124,8 @@ impl TwirCrawler {
             .filter(|issue| issue.title.contains(sentence))
             .collect();
 
+        info!("Issues found offline: {}", found_resources.len());
+
         Ok(found_resources)
     }
 
@@ -138,14 +144,21 @@ impl TwirCrawler {
             found_resources.append(&mut self.parse_page(&issue.link, sentence).await?);
 
             if index > limit {
+                trace!(
+                    "Search limit reached. The last parsed issue: {:?}",
+                    issue.link.0
+                );
                 break;
             }
         }
+
+        info!("Issues found online: {}", found_resources.len());
 
         Ok(found_resources)
     }
 
     pub async fn search(&self, sentence: String, online: bool, limit: i32) {
+        let search_mode = if online { "online" } else { "offline" };
         let found = if (!std::path::Path::is_file(Path::new(TWIR_CONTENTS_FILE_PATH))) || online {
             self.search_online(&sentence, limit)
                 .await
@@ -189,6 +202,8 @@ impl TwirCrawler {
             .filter(|issue| issue.title.contains(sentence))
             .collect();
 
+        trace!("{} link/s found on page {}", links.len(), origin_url);
+
         Ok(links)
     }
 
@@ -220,7 +235,11 @@ impl TwirCrawler {
     ///
     /// Note: This function takes a lot of time run as it needs to fetch every single page
     pub async fn fetch_and_save_twir(&self) -> Result<(), CrawlerError> {
+        info!("Fetch started");
+
         let twir_issues = self.get_all_archived_twir_issues().await?;
+        let twir_issues_len = twir_issues.len();
+        info!("Fetched {} issues.", twir_issues_len);
 
         let mut full_contents: Vec<TwirLinkElement> = Vec::new();
 
