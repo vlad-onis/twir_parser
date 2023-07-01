@@ -29,13 +29,10 @@ pub enum CrawlerError {
     SerdeJson(#[from] serde_json::Error),
 }
 
+#[derive(Debug, Default)]
 pub struct TwirCrawler {}
 
 impl TwirCrawler {
-    pub fn new() -> Self {
-        TwirCrawler {}
-    }
-
     // todo: Return type could be a nicer structure instead of a tuple of string, string
     // The first returned String in the tuple is the link, the other is the title
     //
@@ -60,7 +57,7 @@ impl TwirCrawler {
             .last()
             .unwrap_or(&"")
             .replace("</a>", "")
-            .replace(">", "");
+            .replace('>', "");
 
         TwirLinkElement::new(issue_link, title)
     }
@@ -80,10 +77,7 @@ impl TwirCrawler {
         let client = reqwest::Client::new();
         let origin_url = "https://this-week-in-rust.org/blog/archives/index.html";
         let response = client.get(origin_url).send().await?;
-        let response_status = response.status();
         let response_body = response.text().await?;
-
-        info!("Response status: {}", response_status);
 
         let document = Html::parse_document(&response_body);
 
@@ -112,6 +106,19 @@ impl TwirCrawler {
         Ok(links_and_titles)
     }
 
+    async fn lychee_filter_issues(&self, issues: &mut Vec<TwirLinkElement>) {
+        for (index, resource) in issues.clone().into_iter().enumerate() {
+            if lychee_lib::check(resource.link.0)
+                .await
+                .unwrap()
+                .status()
+                .is_failure()
+            {
+                issues.remove(index);
+            }
+        }
+    }
+
     pub async fn search_offline(
         &self,
         sentence: &str,
@@ -119,12 +126,16 @@ impl TwirCrawler {
         let file_contents = std::fs::read_to_string(TWIR_CONTENTS_FILE_PATH)?;
         let issues_and_titles = serde_json::from_str::<Vec<TwirLinkElement>>(&file_contents)?;
 
-        let found_resources: Vec<TwirLinkElement> = issues_and_titles
+        let mut found_resources: Vec<TwirLinkElement> = issues_and_titles
             .into_iter()
             .filter(|issue| issue.title.contains(sentence))
             .collect();
 
-        info!("Issues found offline: {}", found_resources.len());
+        self.lychee_filter_issues(&mut found_resources).await;
+
+        let len = found_resources.len();
+
+        info!("Issues found offline: {}", len);
 
         Ok(found_resources)
     }
@@ -134,8 +145,7 @@ impl TwirCrawler {
         sentence: &str,
         limit: i32,
     ) -> Result<Vec<TwirLinkElement>, CrawlerError> {
-        let issues_and_titles: Vec<TwirLinkElement>;
-        issues_and_titles = self.get_all_archived_twir_issues().await?;
+        let issues_and_titles: Vec<TwirLinkElement> = self.get_all_archived_twir_issues().await?;
         let mut found_resources: Vec<TwirLinkElement> = Vec::new();
 
         let limit = limit as usize;
@@ -152,13 +162,14 @@ impl TwirCrawler {
             }
         }
 
+        self.lychee_filter_issues(&mut found_resources).await;
+
         info!("Issues found online: {}", found_resources.len());
 
         Ok(found_resources)
     }
 
     pub async fn search(&self, sentence: String, online: bool, limit: i32) {
-        let search_mode = if online { "online" } else { "offline" };
         let found = if (!std::path::Path::is_file(Path::new(TWIR_CONTENTS_FILE_PATH))) || online {
             self.search_online(&sentence, limit)
                 .await

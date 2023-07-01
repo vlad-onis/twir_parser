@@ -9,6 +9,7 @@ license = "MIT"
 
 [dependencies]
 clap = { version = "4.3.4", features = ["derive"] }
+lychee-lib = "0.13.0"
 reqwest = "0.11.18"
 scraper = "0.16.0"
 serde = { version = "1.0.164", features = ["derive"] }
