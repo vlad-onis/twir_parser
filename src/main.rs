@@ -16,6 +16,6 @@ async fn main() {
     let search_online = args.online;
     let limit = args.limit;
 
-    let crawler = TwirCrawler::new();
+    let crawler = TwirCrawler::default();
     crawler.search(search_sentence, search_online, limit).await;
 }
