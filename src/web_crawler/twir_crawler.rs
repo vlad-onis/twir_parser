@@ -1,3 +1,4 @@
+use indicatif::{ProgressBar, ProgressStyle};
 use scraper::{Html, Selector};
 use std::{fs::File, io::BufWriter, path::Path};
 use thiserror::Error;
@@ -107,6 +108,11 @@ impl TwirCrawler {
     }
 
     async fn lychee_filter_issues(&self, issues: &mut Vec<TwirLinkElement>) {
+        let progress_bar = get_progress_bar("Verifying Links");
+
+        let bar_value: f32 = 100.0 / issues.len() as f32;
+        let mut current_bar_value = 0.0;
+
         for (index, resource) in issues.clone().into_iter().enumerate() {
             if lychee_lib::check(resource.link.0)
                 .await
@@ -116,7 +122,11 @@ impl TwirCrawler {
             {
                 issues.remove(index);
             }
+            current_bar_value += bar_value;
+            let int_bar_value = current_bar_value.round() as u64;
+            progress_bar.inc(int_bar_value - progress_bar.position());
         }
+        progress_bar.finish_with_message("Done");
     }
 
     pub async fn search_offline(
@@ -148,10 +158,22 @@ impl TwirCrawler {
         let issues_and_titles: Vec<TwirLinkElement> = self.get_all_archived_twir_issues().await?;
         let mut found_resources: Vec<TwirLinkElement> = Vec::new();
 
+        // The value it should increment to the bar after each issue check is done
+        let bar_value: f32 = 100.0 / limit as f32;
+
+        let mut current_bar_value = 0.0;
+
+        let progress_bar = get_progress_bar("Checking Issues");
+
         let limit = limit as usize;
 
         for (index, issue) in issues_and_titles.into_iter().enumerate() {
             found_resources.append(&mut self.parse_page(&issue.link, sentence).await?);
+
+            current_bar_value += bar_value;
+
+            let int_bar_value = current_bar_value.round() as u64;
+            progress_bar.inc(int_bar_value - progress_bar.position());
 
             if index > limit {
                 trace!(
@@ -161,7 +183,7 @@ impl TwirCrawler {
                 break;
             }
         }
-
+        progress_bar.finish_with_message("Done");
         self.lychee_filter_issues(&mut found_resources).await;
 
         info!("Issues found online: {}", found_resources.len());
@@ -271,4 +293,16 @@ impl TwirCrawler {
 
         Ok(())
     }
+}
+
+fn get_progress_bar(text: &str) -> ProgressBar {
+    let progress_bar = ProgressBar::new(100);
+    let style = ProgressStyle::default_bar()
+        .template("{prefix} [{bar:40.cyan/blue}] {percent}% {eta} {msg}")
+        .unwrap()
+        .progress_chars("=> ");
+    progress_bar.set_style(style);
+    progress_bar.set_prefix(text.to_string());
+
+    progress_bar
 }
