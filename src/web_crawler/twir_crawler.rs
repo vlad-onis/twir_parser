@@ -1,10 +1,10 @@
-use indicatif::{ProgressBar, ProgressStyle};
 use scraper::{Html, Selector};
 use std::{fs::File, io::BufWriter, path::Path};
 use thiserror::Error;
 use tracing::{error, info, trace};
 
 use crate::model::twir_issue::{Link, TwirLinkElement};
+use crate::utils::get_progress_bar;
 
 pub const ISSUE_BACK_BONE_THIS: &str = "this-week-in-rust-";
 pub const ISSUE_BACK_BONE_LAST: &str = "last-week-in-rust-";
@@ -123,8 +123,8 @@ impl TwirCrawler {
                 issues.remove(index);
             }
             current_bar_value += bar_value;
-            let int_bar_value = current_bar_value.round() as u64;
-            progress_bar.inc(int_bar_value - progress_bar.position());
+            let rounded_bar_value = current_bar_value.round() as u64;
+            progress_bar.inc(rounded_bar_value - progress_bar.position());
         }
         progress_bar.finish_with_message("Done");
     }
@@ -172,8 +172,8 @@ impl TwirCrawler {
 
             current_bar_value += bar_value;
 
-            let int_bar_value = current_bar_value.round() as u64;
-            progress_bar.inc(int_bar_value - progress_bar.position());
+            let rounded_bar_value = current_bar_value.round() as u64;
+            progress_bar.inc(rounded_bar_value - progress_bar.position());
 
             if index > limit {
                 trace!(
@@ -208,7 +208,7 @@ impl TwirCrawler {
     /// This function receives an actual issue page, fetches its contents
     /// Parses it for links only since we are interested to find articles
     ///
-    /// It will return to the user a list of currated links and titles
+    /// It will return to the user a list of curated links and titles
     /// that the user can search through
     pub async fn parse_page(
         &self,
@@ -293,16 +293,4 @@ impl TwirCrawler {
 
         Ok(())
     }
-}
-
-fn get_progress_bar(text: &str) -> ProgressBar {
-    let progress_bar = ProgressBar::new(100);
-    let style = ProgressStyle::default_bar()
-        .template("{prefix} [{bar:40.cyan/blue}] {percent}% {eta} {msg}")
-        .unwrap()
-        .progress_chars("=> ");
-    progress_bar.set_style(style);
-    progress_bar.set_prefix(text.to_string());
-
-    progress_bar
 }
