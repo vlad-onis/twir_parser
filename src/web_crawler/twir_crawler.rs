@@ -1,6 +1,10 @@
+use futures::stream::FuturesUnordered;
+use futures::StreamExt;
 use scraper::{Html, Selector};
+use std::sync::Arc;
 use std::{fs::File, io::BufWriter, path::Path};
 use thiserror::Error;
+use tokio::sync::Semaphore;
 use tracing::{error, info, trace};
 
 use crate::model::twir_issue::{Link, TwirLinkElement};
@@ -28,6 +32,9 @@ pub enum CrawlerError {
 
     #[error("Serde Json error: {0}")]
     SerdeJson(#[from] serde_json::Error),
+
+    #[error("Async error: {0}")]
+    Async(#[from] tokio::task::JoinError),
 }
 
 #[derive(Debug, Default)]
@@ -39,7 +46,7 @@ impl TwirCrawler {
     //
     // Structure of a link:
     // "<a href=\"https://this-week-in-rust.org/blog/2013/08/10/this-week-in-rust-10/\">This Week in Rust 10</a>"
-    fn extract_link_and_title(&self, link: String) -> TwirLinkElement {
+    fn extract_link_and_title(link: String) -> TwirLinkElement {
         // This function removes the html tags and quotes in the link
         // splitting it into the link part and the title part
         let link = link.replace("<a href=\"", "");
@@ -101,7 +108,7 @@ impl TwirCrawler {
                     || element.contains(ISSUE_BACK_BONE_LAST)
                     || element.contains(ISSUE_BACK_BONE_THESE)
             })
-            .map(|element| self.extract_link_and_title(element))
+            .map(Self::extract_link_and_title)
             .collect();
 
         Ok(links_and_titles)
@@ -156,33 +163,55 @@ impl TwirCrawler {
         limit: i32,
     ) -> Result<Vec<TwirLinkElement>, CrawlerError> {
         let issues_and_titles: Vec<TwirLinkElement> = self.get_all_archived_twir_issues().await?;
-        let mut found_resources: Vec<TwirLinkElement> = Vec::new();
-
-        // The value it should increment to the bar after each issue check is done
+        let progress_bar = get_progress_bar("Checking Issues");
+        let limit = limit as usize;
         let bar_value: f32 = 100.0 / limit as f32;
 
+        let semaphore = Arc::new(Semaphore::new(100)); // adjust as needed
+        let mut tasks = FuturesUnordered::new();
+
+        for (index, issue) in issues_and_titles.into_iter().enumerate().take(limit) {
+            let link = issue.link.clone();
+            let sentence = sentence.to_owned();
+            let sem_clone = Arc::clone(&semaphore);
+
+            tasks.push(tokio::spawn(async move {
+                let _permit = sem_clone
+                    .acquire()
+                    .await
+                    .expect("Failed to acquire semaphore");
+                let result = Self::parse_page(&link, &sentence).await;
+                drop(_permit); // ensure the semaphore is released
+
+                (index, result)
+            }));
+        }
+
+        let mut found_resources: Vec<TwirLinkElement> = Vec::new();
         let mut current_bar_value = 0.0;
 
-        let progress_bar = get_progress_bar("Checking Issues");
-
-        let limit = limit as usize;
-
-        for (index, issue) in issues_and_titles.into_iter().enumerate() {
-            found_resources.append(&mut self.parse_page(&issue.link, sentence).await?);
-
+        while let Some(result) = tasks.next().await {
+            match result {
+                Ok((index, Ok(mut resources))) => {
+                    found_resources.append(&mut resources);
+            current_bar_value += bar_value;
             current_bar_value += bar_value;
 
-            let rounded_bar_value = current_bar_value.round() as u64;
-            progress_bar.inc(rounded_bar_value - progress_bar.position());
+                    current_bar_value += bar_value;
 
-            if index > limit {
-                trace!(
-                    "Search limit reached. The last parsed issue: {:?}",
-                    issue.link.0
-                );
-                break;
+                    let rounded_bar_value = current_bar_value.round() as u64;
+                    progress_bar.inc(rounded_bar_value - progress_bar.position());
+
+                    if index >= limit {
+                        trace!("Search limit reached.");
+                        break;
+                    }
+                }
+                Ok((_, Err(e))) => return Err(e),
+                Err(e) => return Err(CrawlerError::from(e)), // adjust according to your error type
             }
         }
+
         progress_bar.finish_with_message("Done");
         self.lychee_filter_issues(&mut found_resources).await;
 
@@ -211,7 +240,6 @@ impl TwirCrawler {
     /// It will return to the user a list of curated links and titles
     /// that the user can search through
     pub async fn parse_page(
-        &self,
         origin_url: &str,
         sentence: &str,
     ) -> Result<Vec<TwirLinkElement>, CrawlerError> {
@@ -231,7 +259,7 @@ impl TwirCrawler {
         let links: Vec<TwirLinkElement> = document
             .select(&selector)
             .map(|element| element.html())
-            .map(|element| self.extract_link_and_title(element))
+            .map(Self::extract_link_and_title)
             .filter(|issue| issue.title.contains(sentence))
             .collect();
 
@@ -257,7 +285,7 @@ impl TwirCrawler {
         let links: Vec<TwirLinkElement> = document
             .select(&selector)
             .map(|element| element.html())
-            .map(|element| self.extract_link_and_title(element))
+            .map(Self::extract_link_and_title)
             .collect();
 
         Ok(links)
@@ -303,8 +331,7 @@ pub mod tests {
     pub fn test_link_extraction_valid_html_link() {
         let link = String::from("<a href=\"https://this-week-in-rust.org/blog/2013/08/10/this-week-in-rust-10/\">This Week in Rust 10</a>");
 
-        let crawler = TwirCrawler::default();
-        let currated_link = crawler.extract_link_and_title(link);
+        let currated_link = TwirCrawler::extract_link_and_title(link);
         assert_eq!(
             currated_link.link,
             Link(String::from(
@@ -318,8 +345,7 @@ pub mod tests {
         let link =
             String::from("https://this-week-in-rust.org/blog/2013/08/10/this-week-in-rust-10/");
 
-        let crawler = TwirCrawler::default();
-        let currated_link = crawler.extract_link_and_title(link);
+        let currated_link = TwirCrawler::extract_link_and_title(link);
         assert_eq!(
             currated_link.link,
             Link(String::from(
