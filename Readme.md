@@ -10,15 +10,10 @@ or automatically in case the cache file exists on your system. The tool defaults
 
 ## Installation
 
-In order to install, first clone this repository:
-```bash
-git clone git@github.com:vlad-onis/twir_parser.git
-```
+In order to install, run
 
-And then you can install it on your local machine by going into the directory you just cloned and run:
-In order to install, first clone this repository:
 ```bash
-cargo install --path .
+cargo install --git https://github.com/vlad-onis/twir_parser
 ```
 
 ## Usage
