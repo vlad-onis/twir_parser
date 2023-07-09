@@ -1,6 +1,7 @@
 pub mod cli;
 pub mod logger;
 pub mod model;
+pub mod utils;
 pub mod web_crawler;
 
 use clap::Parser;
