@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::ops::Deref;
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct Link(pub String);
 
 impl Deref for Link {

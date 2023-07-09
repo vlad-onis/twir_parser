@@ -294,3 +294,64 @@ impl TwirCrawler {
         Ok(())
     }
 }
+
+#[cfg(test)]
+pub mod tests {
+    use super::*;
+
+    #[test]
+    pub fn test_link_extraction_valid_html_link() {
+        let link = String::from("<a href=\"https://this-week-in-rust.org/blog/2013/08/10/this-week-in-rust-10/\">This Week in Rust 10</a>");
+
+        let crawler = TwirCrawler::default();
+        let currated_link = crawler.extract_link_and_title(link);
+        assert_eq!(
+            currated_link.link,
+            Link(String::from(
+                "https://this-week-in-rust.org/blog/2013/08/10/this-week-in-rust-10/"
+            ))
+        );
+    }
+
+    #[test]
+    pub fn test_link_extraction_no_html() {
+        let link =
+            String::from("https://this-week-in-rust.org/blog/2013/08/10/this-week-in-rust-10/");
+
+        let crawler = TwirCrawler::default();
+        let currated_link = crawler.extract_link_and_title(link);
+        assert_eq!(
+            currated_link.link,
+            Link(String::from(
+                "https://this-week-in-rust.org/blog/2013/08/10/this-week-in-rust-10/"
+            ))
+        );
+    }
+
+    #[tokio::test]
+    pub async fn test_get_twir_issues() {
+        let crawler = TwirCrawler::default();
+        let issues = crawler.get_all_archived_twir_issues().await.unwrap();
+
+        // not the greatest but it somehow validates that it received
+        // the issues
+        assert!(issues.len() > 500);
+    }
+
+    #[tokio::test]
+    pub async fn test_filter_issues() {
+        let crawler = TwirCrawler::default();
+        let issue1 = TwirLinkElement::new(
+            Link(String::from("https://www.google.com")),
+            String::from("Google"),
+        );
+        let issue2 = TwirLinkElement::new(
+            Link(String::from("https://www.youtube.com")),
+            String::from("Youtube"),
+        );
+
+        let mut issues = vec![issue1.clone(), issue2];
+        crawler.lychee_filter_issues(&mut issues).await;
+        assert_eq!(issues.len(), 2);
+    }
+}
