@@ -194,8 +194,6 @@ impl TwirCrawler {
             match result {
                 Ok((index, Ok(mut resources))) => {
                     found_resources.append(&mut resources);
-            current_bar_value += bar_value;
-            current_bar_value += bar_value;
 
                     current_bar_value += bar_value;
 
