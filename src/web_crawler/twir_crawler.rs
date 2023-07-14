@@ -79,9 +79,6 @@ impl TwirCrawler {
     /// Valid link example: <a href="https://this-week-in-rust.org/blog/2020/07/14/this-week-in-rust-347/">This Week in Rust 347</a>
     /// Currated link collected by this function: https://this-week-in-rust.org/blog/2019/02/26/this-week-in-rust-275/
     pub async fn get_all_archived_twir_issues(&self) -> Result<Vec<TwirLinkElement>, CrawlerError> {
-        // todo:
-        // 1. verify your links with lychee: https://github.com/lycheeverse/lychee
-
         let client = reqwest::Client::new();
         let origin_url = "https://this-week-in-rust.org/blog/archives/index.html";
         let response = client.get(origin_url).send().await?;
@@ -114,6 +111,7 @@ impl TwirCrawler {
         Ok(links_and_titles)
     }
 
+    #[allow(dead_code)]
     async fn lychee_filter_issues(&self, issues: &mut Vec<TwirLinkElement>) {
         let progress_bar = get_progress_bar("Verifying Links");
 
@@ -140,15 +138,18 @@ impl TwirCrawler {
         &self,
         sentence: &str,
     ) -> Result<Vec<TwirLinkElement>, CrawlerError> {
+        info!("Searching offline");
         let file_contents = std::fs::read_to_string(TWIR_CONTENTS_FILE_PATH)?;
         let issues_and_titles = serde_json::from_str::<Vec<TwirLinkElement>>(&file_contents)?;
 
-        let mut found_resources: Vec<TwirLinkElement> = issues_and_titles
-            .into_iter()
+        let found_resources: Vec<TwirLinkElement> = issues_and_titles
+            .iter()
             .filter(|issue| issue.title.contains(sentence))
+            .map(|refer| refer.to_owned())
             .collect();
 
-        self.lychee_filter_issues(&mut found_resources).await;
+        // Temporily disable lychee filter because of a index out of bounds bug in its logic
+        // self.lychee_filter_issues(&mut found_resources).await;
 
         let len = found_resources.len();
 
@@ -163,8 +164,9 @@ impl TwirCrawler {
         limit: i32,
     ) -> Result<Vec<TwirLinkElement>, CrawlerError> {
         let issues_and_titles: Vec<TwirLinkElement> = self.get_all_archived_twir_issues().await?;
-        let progress_bar = get_progress_bar("Checking Issues");
         let limit = limit as usize;
+
+        let progress_bar = get_progress_bar("Checking Issues");
         let bar_value: f32 = 100.0 / limit as f32;
 
         let semaphore = Arc::new(Semaphore::new(100)); // adjust as needed
@@ -211,8 +213,8 @@ impl TwirCrawler {
         }
 
         progress_bar.finish_with_message("Done");
-        
-        // Temporarily disable lychee filter due to an index out of bounds bug 
+
+        // Temporarily disable lychee filter due to an index out of bounds bug
         // self.lychee_filter_issues(&mut found_resources).await;
 
         info!("Issues found online: {}", found_resources.len());
@@ -268,10 +270,7 @@ impl TwirCrawler {
         Ok(links)
     }
 
-    pub async fn get_page_content(
-        &self,
-        origin_url: &str,
-    ) -> Result<Vec<TwirLinkElement>, CrawlerError> {
+    pub async fn get_page_content(origin_url: &str) -> Result<Vec<TwirLinkElement>, CrawlerError> {
         let client = reqwest::Client::new();
         let response = client.get(origin_url).send().await?.text().await?;
 
@@ -303,10 +302,50 @@ impl TwirCrawler {
         info!("Fetched {} issues.", twir_issues_len);
 
         let mut full_contents: Vec<TwirLinkElement> = Vec::new();
+        info!("Parsing pages and saving contents to file.");
+
+        let semaphore = Arc::new(Semaphore::new(100)); // adjust as needed
+        let mut tasks = FuturesUnordered::new();
 
         for issue in twir_issues {
-            full_contents.append(&mut self.get_page_content(&issue.link).await?);
+            let sem_clone = Arc::clone(&semaphore);
+            tasks.push(tokio::spawn(async move {
+                let _permit = sem_clone
+                    .acquire()
+                    .await
+                    .expect("Failed to acquire semaphore");
+                let result = Self::get_page_content(&issue.link).await;
+                drop(_permit); // ensure the semaphore is released
+
+                result
+            }));
         }
+
+        let progress_bar = get_progress_bar("Fetching all contents from the issue links");
+        let bar_value: f32 = 100.0 / twir_issues_len as f32;
+        let mut current_bar_value = 0.0;
+
+        while let Some(result) = tasks.next().await {
+            match result {
+                Ok(Ok(mut resource)) => {
+                    full_contents.append(&mut resource);
+
+                    current_bar_value += bar_value;
+
+                    let rounded_bar_value = current_bar_value.round() as u64;
+                    progress_bar.inc(rounded_bar_value - progress_bar.position());
+                }
+                Ok(Err(e)) => {
+                    error!("Error when parsing issue page: {e}");
+                }
+                Err(e) => {
+                    error!("Join Error while fetching: {e}");
+                }
+            }
+        }
+
+        progress_bar.finish_with_message("Done");
+        info!("Parsing pages and saving contents to file.");
 
         let file = File::create(TWIR_CONTENTS_FILE_PATH).map_err(|e| {
             error!("Creating the twir content file failed: {e}");
