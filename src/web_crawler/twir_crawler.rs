@@ -211,7 +211,9 @@ impl TwirCrawler {
         }
 
         progress_bar.finish_with_message("Done");
-        self.lychee_filter_issues(&mut found_resources).await;
+        
+        // Temporarily disable lychee filter due to an index out of bounds bug 
+        // self.lychee_filter_issues(&mut found_resources).await;
 
         info!("Issues found online: {}", found_resources.len());
 
