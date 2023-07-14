@@ -111,6 +111,7 @@ impl TwirCrawler {
         Ok(links_and_titles)
     }
 
+    #[allow(dead_code)]
     async fn lychee_filter_issues(&self, issues: &mut Vec<TwirLinkElement>) {
         let progress_bar = get_progress_bar("Verifying Links");
 
@@ -137,15 +138,17 @@ impl TwirCrawler {
         &self,
         sentence: &str,
     ) -> Result<Vec<TwirLinkElement>, CrawlerError> {
+        info!("Searching offline");
         let file_contents = std::fs::read_to_string(TWIR_CONTENTS_FILE_PATH)?;
         let issues_and_titles = serde_json::from_str::<Vec<TwirLinkElement>>(&file_contents)?;
 
-        let mut found_resources: Vec<TwirLinkElement> = issues_and_titles
+        let found_resources: Vec<TwirLinkElement> = issues_and_titles
             .into_iter()
             .filter(|issue| issue.title.contains(sentence))
             .collect();
 
-        self.lychee_filter_issues(&mut found_resources).await;
+        // Temporily disable lychee filter because of a index out of bounds bug in its logic
+        // self.lychee_filter_issues(&mut found_resources).await;
 
         let len = found_resources.len();
 
