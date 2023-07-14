@@ -13,6 +13,9 @@ pub struct Args {
     /// Limits the search to the last <limit> number of twir issues
     #[arg(short, long, default_value_t = 500)]
     pub limit: i32,
+
+    #[arg(short, long, default_value_t = false)]
+    pub fetch_and_save: bool,
 }
 
 pub fn get_search_arg() -> String {

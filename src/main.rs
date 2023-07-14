@@ -16,7 +16,13 @@ async fn main() {
     let search_sentence = args.search;
     let search_online = args.online;
     let limit = args.limit;
+    let fetch_and_save = args.fetch_and_save;
 
     let crawler = TwirCrawler::default();
+
+    if fetch_and_save {
+        let _ = crawler.fetch_and_save_twir().await;
+    }
+
     crawler.search(search_sentence, search_online, limit).await;
 }
