@@ -143,8 +143,9 @@ impl TwirCrawler {
         let issues_and_titles = serde_json::from_str::<Vec<TwirLinkElement>>(&file_contents)?;
 
         let found_resources: Vec<TwirLinkElement> = issues_and_titles
-            .into_iter()
+            .iter()
             .filter(|issue| issue.title.contains(sentence))
+            .map(|refer| refer.to_owned())
             .collect();
 
         // Temporily disable lychee filter because of a index out of bounds bug in its logic

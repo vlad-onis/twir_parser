@@ -10,7 +10,7 @@ pub struct Args {
     #[arg(short, long, default_value_t = false)]
     pub online: bool,
 
-    /// Limits the search to the last <limit> number of twir issues
+    /// Limits the ONLINE search to the last <limit> number of twir issues
     #[arg(short, long, default_value_t = 500)]
     pub limit: i32,
 
