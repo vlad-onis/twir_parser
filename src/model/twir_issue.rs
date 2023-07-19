@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
-use std::ops::Deref;
+use std::{fmt::Display, ops::Deref};
+use tabled::Tabled;
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct Link(pub String);
@@ -12,14 +13,20 @@ impl Deref for Link {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, Tabled)]
 pub struct TwirLinkElement {
-    pub link: Link,
     pub title: String,
+    pub link: Link,
 }
 
 impl TwirLinkElement {
     pub fn new(link: Link, title: String) -> Self {
         TwirLinkElement { link, title }
+    }
+}
+
+impl Display for Link {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
