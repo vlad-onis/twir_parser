@@ -8,8 +8,10 @@ The goal of this CLI project is to parse the TWIR articles in search of given ke
 
 ## Introduction
 This CLI tool was born because TWIR newsletter is an amazing learning resource. This tool allows you to search for given word patterns in the
-newsletter's archive. It has 2 types of search online and offline. In the beginning if you've never used it before, it will fetch all the content
-from the newsletter, this may take a few minutes. After fetch it will decide to search online or offline based on a CLI option that you can pass
+newsletter's archive. 
+
+It has 2 types of search online and offline. In the beginning if you've never used it before, fetch all the content
+from the newsletter - please not that this may take a bit (20-30 seconds). After the fetch it will decide to search online or offline based on a CLI option that you can pass
 or automatically in case the cache file exists on your system. The tool defaults to offline search for speed.
 
 ## Installation
@@ -23,6 +25,10 @@ cargo install --git https://github.com/vlad-onis/twir_parser
 ## Usage
 
 ```bash
+
+# Prefered usage for now is to clone this repo and run for example:
+cargo run --release -- --search "async trait" --limit 30
+
 # Searches the entire TWIR issue archive for "embedded audio" articles
 # This will also save a local file and will use that as cache on next runs
 twir_parser --search "embedded audio"
