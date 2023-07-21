@@ -1,5 +1,8 @@
-# TWIR(This week in rust) parser
+<p align="center">
+    <img src="logo.png" alt="logo" width=350/>
+</p>
 
+<h2 align="center">TWIR(This week in rust) crawler</h2>
 The goal of this CLI project is to parse the TWIR articles in search of given keywords.
 
 ## Introduction
