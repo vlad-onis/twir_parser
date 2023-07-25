@@ -145,7 +145,7 @@ impl TwirCrawler {
 
         let found_resources: Vec<TwirLinkElement> = issues_and_titles
             .iter()
-            .filter(|issue| issue.title.contains(sentence))
+            .filter(|issue| issue.title.to_lowercase().contains(sentence))
             .map(|refer| refer.to_owned())
             .collect();
 
@@ -266,7 +266,7 @@ impl TwirCrawler {
             .select(&selector)
             .map(|element| element.html())
             .map(Self::extract_link_and_title)
-            .filter(|issue| issue.title.contains(sentence))
+            .filter(|issue| issue.title.to_lowercase().contains(sentence))
             .collect();
 
         trace!("{} link/s found on page {}", links.len(), origin_url);

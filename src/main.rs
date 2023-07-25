@@ -13,7 +13,7 @@ async fn main() {
 
     let args = cli::Args::parse();
 
-    let search_sentence = args.search;
+    let search_sentence = args.search.to_lowercase();
     let search_online = args.online;
     let limit = args.limit;
     let update_cache = args.update_cache;
