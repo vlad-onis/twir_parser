@@ -3,7 +3,7 @@ use futures::StreamExt;
 use scraper::{Html, Selector};
 use std::sync::Arc;
 use std::{fs::File, io::BufWriter, path::Path};
-use tabled::Table;
+use tabled::{settings::Style, Table};
 use thiserror::Error;
 use tokio::sync::Semaphore;
 use tracing::{error, info, trace};
@@ -145,7 +145,7 @@ impl TwirCrawler {
 
         let found_resources: Vec<TwirLinkElement> = issues_and_titles
             .iter()
-            .filter(|issue| issue.title.contains(sentence))
+            .filter(|issue| issue.title.to_lowercase().contains(sentence))
             .map(|refer| refer.to_owned())
             .collect();
 
@@ -232,11 +232,7 @@ impl TwirCrawler {
             self.search_offline(&sentence).await.unwrap_or_default()
         };
 
-        // Old display...
-        // for element in found {
-        //     info!("Found: {} -> {}", element.title, element.link.0);
-        // }
-        let table = Table::new(found).to_string();
+        let table = Table::new(found).with(Style::rounded()).to_string();
         println!("{table}")
     }
 
@@ -266,7 +262,7 @@ impl TwirCrawler {
             .select(&selector)
             .map(|element| element.html())
             .map(Self::extract_link_and_title)
-            .filter(|issue| issue.title.contains(sentence))
+            .filter(|issue| issue.title.to_lowercase().contains(sentence))
             .collect();
 
         trace!("{} link/s found on page {}", links.len(), origin_url);
