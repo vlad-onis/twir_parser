@@ -3,7 +3,7 @@ use futures::StreamExt;
 use scraper::{Html, Selector};
 use std::sync::Arc;
 use std::{fs::File, io::BufWriter, path::Path};
-use tabled::Table;
+use tabled::{settings::Style, Table};
 use thiserror::Error;
 use tokio::sync::Semaphore;
 use tracing::{error, info, trace};
@@ -232,11 +232,7 @@ impl TwirCrawler {
             self.search_offline(&sentence).await.unwrap_or_default()
         };
 
-        // Old display...
-        // for element in found {
-        //     info!("Found: {} -> {}", element.title, element.link.0);
-        // }
-        let table = Table::new(found).to_string();
+        let table = Table::new(found).with(Style::rounded()).to_string();
         println!("{table}")
     }
 
