@@ -24,10 +24,15 @@ cargo install --git https://github.com/vlad-onis/twir_parser
 
 ## Usage
 
-```bash
+Download the binary from the latest GitHub Release:
 
+<https://github.com/vlad-onis/twir_parser/releases/latest>
+
+Place the binary in your `$PATH` and rename it to `twir_parser`.
+
+```bash
 # Prefered usage for now is to clone this repo and run for example:
-cargo run --release -- --search "async trait" --limit 30
+twir_parser --search "async trait" --limit 30
 
 # Searches the entire TWIR issue archive for "embedded audio" articles
 # This will also save a local file and will use that as cache on next runs
