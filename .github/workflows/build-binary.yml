@@ -55,7 +55,7 @@ jobs:
         run: |
           sudo apt update
           sudo apt install -y musl-tools libssl-dev
-      - if: matrix.target.contains('apple')
+      - if: contains(matrix.target, 'apple')
         name: Install Apple dependencies
         run: |
           brew install openssl
