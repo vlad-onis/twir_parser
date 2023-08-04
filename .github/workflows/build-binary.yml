@@ -50,7 +50,7 @@ jobs:
       - name: Install Rust stable
         run: |
           rustup toolchain install stable --target ${{ matrix.target }}
-      - if: target == 'x86_64-unknown-linux-musl'
+      - if: matrix.target == 'x86_64-unknown-linux-musl'
         name: Install musl
         run: |
           sudo apt update
