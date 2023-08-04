@@ -59,7 +59,7 @@ jobs:
       - if: contains(matrix.target, 'apple')
         name: Install Apple dependencies
         run: |
-          brew install openssl
+          brew install openssl coreutils
       - name: Build
         run: |
           cargo build --release --target ${{ matrix.target }}
