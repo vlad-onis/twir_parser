@@ -55,6 +55,7 @@ jobs:
         run: |
           sudo apt update
           sudo apt install -y musl-tools libssl-dev
+          echo "OPENSSL_DIR=/usr/lib/x86_64-linux-musl" >> $GITHUB_ENV
       - if: contains(matrix.target, 'apple')
         name: Install Apple dependencies
         run: |
