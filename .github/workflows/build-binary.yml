@@ -54,7 +54,7 @@ jobs:
         name: Install musl
         run: |
           sudo apt update
-          sudo apt install -y musl-tools
+          sudo apt install -y musl-tools libssl-dev
       - name: Build
         run: |
           cargo build --release --target ${{ matrix.target }}
