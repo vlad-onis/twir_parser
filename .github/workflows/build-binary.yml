@@ -54,7 +54,7 @@ jobs:
         id: package-name
         uses: nicolaiunrein/cargo-get@master
         with:
-          flags: --name
+          subcommand: package.name
       - name: Rename binary
         run: |
           cp target/${{ matrix.target }}/release/${{ steps.package-name.outputs.metadata }} target/${{ matrix.target }}/release/${{ steps.package-name.outputs.metadata }}-${{ matrix.target }}
